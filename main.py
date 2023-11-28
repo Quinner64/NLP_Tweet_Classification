@@ -11,16 +11,33 @@ import nltk  #natural language processing
 nltk.download("stopwords")
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
+from sklearn.feature_extraction.text import CountVectorizer
+import time
+
+# Tokenizing & Padding Imports
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
+import os
+import pickle
 
 # For Building the model imports
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import seaborn as sns
+import keras.backend as K
 
-# Tokenizing & Padding Imports
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
+# Bidirectional LSTM Using NN
+from keras.models import Sequential
+from keras.layers import Embedding, Conv1D, MaxPooling1D, Bidirectional, LSTM, Dense, Dropout
+from keras.metrics import Precision, Recall
+from keras.optimizers import SGD
+from keras.optimizers import RMSprop
+from keras import datasets
 
+from keras.callbacks import LearningRateScheduler
+from keras.callbacks import History
+
+from keras import losses
 
 def load_datasets():
     # Load Mobi Tweet dataset
@@ -100,9 +117,18 @@ def preprocessing(df):
     from sklearn.preprocessing import LabelEncoder
     # from sklearn.feature_extraction.text import TfidfVectorizer
 
+    # Calculate Start time of tweet_to_words function
+    start_time = time.time()
+
     # Apply data preprocessing to each tweet
     X = list(map(tweet_to_words, df['clean_text']))
 
+    # Calculate End time of tweet_to_words function
+    end_time = time.time()
+
+    # Calculate elapsed time
+    elapsed_time = end_time - start_time
+    print(f"Elapsed time: {elapsed_time} seconds")
 
     # Encode target labels
     le = LabelEncoder()
@@ -132,9 +158,17 @@ def tokenize_pad_sequences(text):
     # return sequences
     return X, tokenizer
 
+
+def f1_score(precision, recall):
+    ''' Function to calculate f1 score '''
+
+    f1_val = 2 * (precision * recall) / (precision + recall + K.epsilon())
+    return f1_val
+
+
+
 # Main function
 if __name__ == '__main__':
-    from sklearn.feature_extraction.text import CountVectorizer
 
     # Load Datasets
     df = load_datasets()
@@ -145,8 +179,11 @@ if __name__ == '__main__':
     # Preprocessing
     X, Y = preprocessing(df)
 
+    # TODO Implement in function
     # ---Tokenizing & Padding---
     # Train and test split
+
+    # TODO place these 3 lines in function (Used multiple times)
     y = pd.get_dummies(df['category'])
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=1)
@@ -177,16 +214,72 @@ if __name__ == '__main__':
     X, tokenizer = tokenize_pad_sequences(df['clean_text'])
     print('After Tokenization & Padding \n', X[0])
 
-    import pickle
+    # TODO Fix Loading Issue
+    '''
+    file_path = "tokenizer.pickle"
 
-    # saving
-    with open('tokenizer.pickle', 'wb') as handle:
-        pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    if os.path.exists(file_path):
+        print("Loading tokenizer file")
+        # loading
+        with open('tokenizer.pickle', 'rb') as handle:
+            tokenizer = pickle.load(handle)
+    else:
+        print("Tokenizer does not exist")
+        # saving
+        with open('tokenizer.pickle', 'wb') as handle:
+            pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    '''
 
-    # loading
-    with open('tokenizer.pickle', 'rb') as handle:
-        tokenizer = pickle.load(handle)
+    # ---BuildModel---
+    y = pd.get_dummies(df['category'])
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=1)
+    print('Train Set ->', X_train.shape, y_train.shape)
+    print('Validation Set ->', X_val.shape, y_val.shape)
+    print('Test Set ->', X_test.shape, y_test.shape)
 
+    vocab_size = 5000
+    embedding_size = 32
+    epochs = 20
+    learning_rate = 0.1
+    decay_rate = learning_rate / epochs
+    momentum = 0.8
+
+    # Removed decay rate
+    # decay=decay_rate,
+    sgd = SGD(lr=learning_rate, momentum=momentum, nesterov=False)
+
+    # Build model
+    model = Sequential()
+    model.add(Embedding(vocab_size, embedding_size, input_length=max_len))
+    model.add(Conv1D(filters=32, kernel_size=3, padding='same', activation='relu'))
+    model.add(MaxPooling1D(pool_size=2))
+    model.add(Bidirectional(LSTM(32)))
+    model.add(Dropout(0.4))
+    model.add(Dense(3, activation='softmax'))
+
+    tf.keras.utils.plot_model(model, show_shapes=True)
+
+    print(model.summary())
+
+    # Compile model
+    model.compile(loss='categorical_crossentropy', optimizer=sgd,
+                  metrics=['accuracy', Precision(), Recall()])
+
+    # Train model
+    batch_size = 64
+    history = model.fit(X_train, y_train,
+                        validation_data=(X_val, y_val),
+                        batch_size=batch_size, epochs=epochs, verbose=1)
+
+    # Evaluate model on the test set
+    loss, accuracy, precision, recall = model.evaluate(X_test, y_test, verbose=0)
+    # Print metrics
+    print('')
+    print('Accuracy  : {:.4f}'.format(accuracy))
+    print('Precision : {:.4f}'.format(precision))
+    print('Recall    : {:.4f}'.format(recall))
+    print('F1 Score  : {:.4f}'.format(f1_score(precision, recall)))
 
 
 
