@@ -169,6 +169,7 @@ def f1_score(precision, recall):
 
 # Main function
 if __name__ == '__main__':
+    prog_start_time = time.time()
 
     # Load Datasets
     df = load_datasets()
@@ -280,6 +281,10 @@ if __name__ == '__main__':
     print('Precision : {:.4f}'.format(precision))
     print('Recall    : {:.4f}'.format(recall))
     print('F1 Score  : {:.4f}'.format(f1_score(precision, recall)))
+
+    prog_end_time = time.time()
+    prog_elapsed_time = (prog_end_time - prog_start_time)/60
+    print(f"Elapsed time: {prog_elapsed_time} mins")
 
 
 
