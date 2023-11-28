@@ -7,7 +7,7 @@ import matplotlib.patches as mpatches
 
 # Preprocessing Imports
 import re    # RegEx for removing non-letter characters
-import nltk  #natural language processing
+import nltk  # natural language processing
 nltk.download("stopwords")
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
@@ -139,8 +139,6 @@ def preprocessing(df):
 
     return X, Y
 
-
-
 max_words = 5000
 max_len=50
 def tokenize_pad_sequences(text):
@@ -164,8 +162,6 @@ def f1_score(precision, recall):
 
     f1_val = 2 * (precision * recall) / (precision + recall + K.epsilon())
     return f1_val
-
-
 
 # Main function
 if __name__ == '__main__':
